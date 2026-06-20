@@ -1,98 +1,274 @@
 # IntelliDocs AI – Multi-Agent Document Intelligence Platform (Agentic AI + RAG)
 
-A clean, premium document intelligence platform built with **Streamlit**, **LangChain**, and **LangGraph**. It elevates standard RAG pipelines into a stateful, cooperative **Multi-Agent** workflow. Upload local documents (PDF, DOCX, TXT, CSV), build vector indexes locally via FAISS, and query your data while observing individual agents execute in real-time.
+## Overview
+
+IntelliDocs AI is an advanced Multi-Agent Document Intelligence Platform that combines Retrieval-Augmented Generation (RAG), Large Language Models (LLMs), and Agentic AI workflows to enable intelligent document understanding and contextual question answering.
+
+The platform allows users to upload and analyze PDF, DOCX, TXT, and CSV documents, perform semantic search using vector embeddings, and receive verified, citation-backed answers generated through a collaborative multi-agent pipeline orchestrated by LangGraph.
 
 ---
 
-## 🤖 Multi-Agent Architecture
+## Key Features
 
-Queries are processed sequentially by four specialized agents orchestrated via **LangGraph**:
+### Multi-Agent AI Workflow
 
-1. **Retrieval Agent**:
-   - Performs semantic similarity searches on the FAISS vector database.
-   - Evaluates chunk relevance using a consolidated LLM rating prompt (0-5 scale) to filter out low-relevance noise.
-2. **Summarization Agent**:
-   - Synthesizes retrieved chunks to eliminate duplicate facts and contradictions.
-   - Generates a condensed, structured, and redundancy-free context summary.
-3. **Fact Verification Agent**:
-   - Cross-references the context summary against raw source documents.
-   - Detects potential hallucinations or unsupported claims and drafts a validation report.
-4. **Answer Generation Agent**:
-   - Uses the context summary and fact-checking report to draft the final response.
-   - Employs conversational history (memory) for chat continuity.
-   - Embeds inline source and page citations (e.g., `[Source: document.pdf, Page: 2]`).
+The system uses four specialized AI agents:
 
----
+#### Retrieval Agent
 
-## ⚡ Features
+* Retrieves the most relevant document chunks from the FAISS vector database.
+* Scores and ranks document relevance.
 
-- **Multi-Agent Orchestration**: Sequential coordination built with LangGraph.
-- **Agent Monitoring**: Streamlit status widget showing exactly which agent is executing, its active status, and intermediate insights in real-time.
-- **Multi-Format Document Parsing**: Upload and parse PDF, DOCX, TXT, or CSV files (with automatic OCR for scanned PDFs using Gemini or Groq Vision models).
-- **Persistent Chat History**: Session threads are persisted in a local SQLite database (`chats.db`).
-- **Flexible Model Selection**: Choose between **Google Gemini**, **Groq (Llama 3)**, or **OpenAI** for query resolution.
-- **Modern UI Styles**: Premium light-themed CSS chat layout, with micro-animations and loading states.
+#### Summarization Agent
 
----
+* Synthesizes retrieved content.
+* Removes redundant information.
+* Produces concise context for downstream processing.
 
-## File Structure
+#### Fact Verification Agent
 
-The project is structured as follows:
+* Verifies claims against original document sources.
+* Detects unsupported information.
+* Reduces hallucinations.
 
-* **[app.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/app.py)**: Main Streamlit application, containing the auth cards, layout containers, and the LangGraph execution loop with live progress tracking.
-* **[agents/](file:///v:/AIPROJECTS/IntelliDocs%20AI/agents/)**: New module containing agent logic:
-  * [state.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/agents/state.py): Defines the shared memory (`AgentState`) structure.
-  * [utils.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/agents/utils.py): Manages LLM instantiation across OpenAI, Gemini, and Groq.
-  * [retrieval_agent.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/agents/retrieval_agent.py): Performs vector searches and LLM-based relevance filtering.
-  * [summarization_agent.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/agents/summarization_agent.py): Synthesizes document chunks into a concise summary.
-  * [verification_agent.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/agents/verification_agent.py): Factual check to avoid hallucinations.
-  * [generation_agent.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/agents/generation_agent.py): Generates citation-rich responses using conversation history.
-  * [workflow.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/agents/workflow.py): Compiles the LangGraph StateGraph workflow.
-* **[diag.py](file:///v:/AIPROJECTS/IntelliDocs%20AI/diag.py)**: Diagnostic checks for dependencies, databases, and LLM providers.
-* **[requirements.txt](file:///v:/AIPROJECTS/IntelliDocs%20AI/requirements.txt)**: Specifies project requirements including `langgraph`.
+#### Answer Generation Agent
+
+* Generates final responses.
+* Incorporates verified context and conversation history.
+* Provides source citations.
 
 ---
 
-## Setup & Running Locally
+## Architecture
 
-### 1. Prerequisites
-- **Python 3.9 - 3.11** installed.
+```text
+User Query
+     │
+     ▼
+Retrieval Agent
+     │
+     ▼
+Summarization Agent
+     │
+     ▼
+Fact Verification Agent
+     │
+     ▼
+Answer Generation Agent
+     │
+     ▼
+Final Response + Citations
+```
 
-### 2. Create & Activate Virtual Environment
+---
+
+## Technology Stack
+
+### Frontend
+
+* Streamlit
+
+### Backend
+
+* Python
+
+### Generative AI
+
+* Google Gemini
+* OpenAI GPT Models
+* Groq Llama Models
+
+### Agent Framework
+
+* LangGraph
+
+### RAG Components
+
+* LangChain
+* FAISS Vector Database
+* HuggingFace Embeddings
+
+### Database
+
+* SQLite
+
+### Document Processing
+
+* PyMuPDF
+* python-docx
+* pandas
+
+---
+
+## Supported File Formats
+
+* PDF
+* DOCX
+* TXT
+* CSV
+
+---
+
+## Core Functionalities
+
+### Intelligent Document Search
+
+Perform semantic search across uploaded documents using vector embeddings and similarity matching.
+
+### Context-Aware Question Answering
+
+Ask natural language questions and receive contextual responses grounded in document content.
+
+### Citation-Based Responses
+
+Every answer includes supporting source references and document excerpts.
+
+### Persistent Chat Sessions
+
+Conversation history is stored locally using SQLite for continuity and future reference.
+
+### Multi-Provider LLM Support
+
+Switch between:
+
+* Google Gemini
+* OpenAI
+* Groq (Llama Models)
+
+---
+
+## Project Structure
+
+```text
+IntelliDocs-AI/
+│
+├── app.py
+├── diag.py
+├── requirements.txt
+├── README.md
+├── chats.db
+│
+├── agents/
+│   ├── __init__.py
+│   ├── state.py
+│   ├── utils.py
+│   ├── retrieval_agent.py
+│   ├── summarization_agent.py
+│   ├── verification_agent.py
+│   ├── generation_agent.py
+│   └── workflow.py
+│
+├── vector_store/
+│
+├── uploads/
+│
+└── .env
+```
+
+---
+
+## Installation
+
+### Clone Repository
+
+```bash
+git clone https://github.com/Varunkurhade1674/IntelliDocs-AI-Document-Intelligence-Hub.git
+
+cd IntelliDocs-AI-Document-Intelligence-Hub
+```
+
+### Create Virtual Environment
+
 ```bash
 python -m venv venv
+```
 
-# On Windows (PowerShell)
-venv\Scripts\Activate.ps1
+### Activate Environment
 
-# On Windows (CMD)
-venv\Scripts\activate.bat
+Windows:
 
-# On macOS/Linux
+```bash
+venv\Scripts\activate
+```
+
+Linux / macOS:
+
+```bash
 source venv/bin/activate
 ```
 
-### 3. Install Dependencies
+### Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
-Create a `.env` file in the root directory:
+---
+
+## Environment Variables
+
+Create a `.env` file:
+
 ```env
-GEMINI_API_KEY="your-gemini-key"
-GROQ_API_KEY="your-groq-key"
-OPENAI_API_KEY="your-openai-key"
+GEMINI_API_KEY=your_gemini_key
+
+OPENAI_API_KEY=your_openai_key
+
+GROQ_API_KEY=your_groq_key
 ```
 
-### 5. Running Diagnostics (Optional)
-To verify if your credentials, models, vector store, and dependencies are working correctly:
+---
+
+## Run Diagnostics
+
 ```bash
 python diag.py
 ```
 
-### 6. Run the Application
+This verifies:
+
+* API connectivity
+* Database health
+* FAISS index availability
+* Document parsing libraries
+
+---
+
+## Launch Application
+
 ```bash
 streamlit run app.py
 ```
-Open **[http://localhost:8501](http://localhost:8501)** in your browser.
+
+Application URL:
+
+```text
+http://localhost:8501
+```
+
+---
+
+## Example Workflow
+
+1. Upload a PDF document.
+2. System extracts and indexes content.
+3. Embeddings are generated and stored in FAISS.
+4. User asks a question.
+5. Multi-Agent workflow executes:
+
+   * Retrieval Agent
+   * Summarization Agent
+   * Verification Agent
+   * Generation Agent
+6. Verified answer with citations is displayed.
+
+---
+
+## Future Enhancements
+
+* Multi-document comparison
+* Knowledge Graph generation
+* Voice-based document interaction
+* Agent performance analytics
+* Enterprise authentication and RBAC
+* Cloud deployment support
