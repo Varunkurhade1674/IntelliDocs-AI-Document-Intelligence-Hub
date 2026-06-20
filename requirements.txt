@@ -11,4 +11,6 @@ pypdf
 faiss-cpu
 docx2txt
 pymupdf
+langgraph
+
 

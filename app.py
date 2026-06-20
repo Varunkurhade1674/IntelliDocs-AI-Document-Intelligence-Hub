@@ -1628,64 +1628,91 @@ with col_chat:
                 st.markdown(query)
 
             with st.chat_message("assistant"):
-                with st.spinner("Thinking…"):
-                    try:
-                        # Retry similarity search on transient network errors
-                        rdocs = None
-                        for _attempt in range(3):
-                            try:
-                                rdocs = st.session_state.vector_store.similarity_search(query, k=4)
-                                break
-                            except Exception as _e:
-                                if _attempt < 2 and ("getaddrinfo" in str(_e) or "timeout" in str(_e).lower()):
-                                    time.sleep(1.5)
-                                else:
-                                    raise
-                        ctx_parts, sources = [], []
-                        for d in rdocs:
-                            src = d.metadata.get("source","Document")
-                            pg  = d.metadata.get("page","—")
-                            ctx_parts.append(f"Source: {src} (Page {pg})\n{d.page_content}")
-                            sources.append({"file":src,"page":pg,"text":d.page_content})
-                        ctx = "\n---\n".join(ctx_parts)
-                        sys_prompt = (
-                            "You are IntelliDocs AI, a premium document intelligence assistant.\n"
-                            "Answer using ONLY the document context below. If the answer isn't there, say so.\n"
-                            "Be detailed and professional. Use markdown formatting.\n\n"
-                            f"--- CONTEXT ---\n{ctx}\n---------------")
-                        msgs = [("system", sys_prompt)]
-                        for m in st.session_state.chat_history[-9:-1]:
-                            msgs.append((m["role"], m["content"]))
-                        msgs.append(("human", query))
-                        llm_stream, used_model = invoke_llm_with_fallback(provider, model, temp, msgs)
-                        if used_model != model:
-                            st.toast(f"⚡ Rate limit hit — switched to {used_model}", icon="⚡")
-                        full = st.write_stream(llm_stream)
-                        st.session_state.chat_history.append({"role":"assistant","content":full,"sources":sources})
-                        save_message(st.session_state.current_thread_id, "assistant", full, sources)
-                        st.rerun()
-                    except Exception as e:
-                        err_s = str(e)
-                        if "API_KEY_INVALID" in err_s or "expired" in err_s.lower() or "API key expired" in err_s:
-                            friendly = "🔑 **Your Gemini API key has expired.** Please go to the **⚙️ Model Controls** tab and switch your provider to **Groq**."
-                            st.error(friendly)
-                            st.session_state.chat_history.append({"role":"assistant","content":friendly})
-                            save_message(st.session_state.current_thread_id, "assistant", friendly)
-                        elif "429" in err_s or "RESOURCE_EXHAUSTED" in err_s or "quota" in err_s.lower():
-                            import re
-                            wait_match = re.search(r"retry in (\d+)", err_s)
-                            wait_secs = wait_match.group(1) if wait_match else "60"
-                            friendly = (
-                                f"⏳ **All Gemini models are currently rate-limited** (free tier quota reached).\n\n"
-                                f"Please wait **~{wait_secs} seconds** and try again, or switch to **Groq** "
-                                f"(free & fast) in the ⚙️ Model Controls panel."
-                            )
-                            st.warning(friendly)
-                        else:
-                            err = f"❌ Error: {err_s}"
-                            st.error(err)
-                            st.session_state.chat_history.append({"role":"assistant","content":err})
-                            save_message(st.session_state.current_thread_id, "assistant", err)
+                try:
+                    from agents import create_agent_graph
+                    
+                    with st.status("🤖 Orchestrating Multi-Agent Workflow...", expanded=True) as status:
+                        status.write("🔍 **Retrieval Agent**: Fetching document chunks and evaluating relevance...")
+                        
+                        graph = create_agent_graph()
+                        
+                        initial_state = {
+                            "query": query,
+                            "chat_history": st.session_state.chat_history[:-1],  # Exclude current user query
+                            "vector_store": st.session_state.vector_store,
+                            "provider": provider,
+                            "model": model,
+                            "temperature": temp,
+                            "retrieved_docs": [],
+                            "relevance_scores": [],
+                            "summarized_context": "",
+                            "verification_report": {},
+                            "final_answer": "",
+                            "sources": []
+                        }
+                        
+                        final_state = initial_state
+                        
+                        # Stream the node updates to show execution step-by-step
+                        for event in graph.stream(initial_state, stream_mode="updates"):
+                            for node, state_update in event.items():
+                                if node == "retrieval":
+                                    rdocs = state_update.get("retrieved_docs", [])
+                                    scores = state_update.get("relevance_scores", [])
+                                    status.write(f"✅ **Retrieval Agent**: Retrieved {len(rdocs)} chunks (Relevance scores: {scores})")
+                                    status.write("📝 **Summarization Agent**: Synthesizing context chunks and removing redundancies...")
+                                    final_state.update(state_update)
+                                elif node == "summarization":
+                                    status.write("✅ **Summarization Agent**: Synthetic context summary compiled.")
+                                    status.write("🛡️ **Fact Verification Agent**: Checking summary against raw document context...")
+                                    final_state.update(state_update)
+                                elif node == "verification":
+                                    report = state_update.get("verification_report", {})
+                                    status.write(f"✅ **Fact Verification Agent**: Status: `{report.get('status')}`. Hallucinations: `{report.get('hallucinations_detected')}`.")
+                                    status.write("✍️ **Answer Generation Agent**: Formulating final response with citations...")
+                                    final_state.update(state_update)
+                                elif node == "generation":
+                                    status.write("✅ **Answer Generation Agent**: Final response drafted.")
+                                    final_state.update(state_update)
+                                    
+                        status.update(label="🤖 Multi-Agent Workflow Completed!", state="complete")
+                    
+                    final_answer = final_state.get("final_answer", "Error: No answer generated.")
+                    sources = final_state.get("sources", [])
+                    
+                    # Stream the output token-by-token for responsive UI feel
+                    def stream_text(text):
+                        for char in text:
+                            yield char
+                            time.sleep(0.002)
+                    
+                    full_response = st.write_stream(stream_text(final_answer))
+                    st.session_state.chat_history.append({"role": "assistant", "content": full_response, "sources": sources})
+                    save_message(st.session_state.current_thread_id, "assistant", full_response, sources)
+                    st.rerun()
+                    
+                except Exception as e:
+                    err_s = str(e)
+                    if "API_KEY_INVALID" in err_s or "expired" in err_s.lower() or "API key expired" in err_s:
+                        friendly = "🔑 **Your API key has expired or is invalid.** Please go to the **⚙️ Model Controls** tab and check your keys or switch provider."
+                        st.error(friendly)
+                        st.session_state.chat_history.append({"role":"assistant","content":friendly})
+                        save_message(st.session_state.current_thread_id, "assistant", friendly)
+                    elif "429" in err_s or "RESOURCE_EXHAUSTED" in err_s or "quota" in err_s.lower():
+                        import re
+                        wait_match = re.search(r"retry in (\d+)", err_s)
+                        wait_secs = wait_match.group(1) if wait_match else "60"
+                        friendly = (
+                            f"⏳ **Model is currently rate-limited** (free tier quota reached).\n\n"
+                            f"Please wait **~{wait_secs} seconds** and try again, or switch to **Groq** "
+                            f"(free & fast) in the ⚙️ Model Controls panel."
+                        )
+                        st.warning(friendly)
+                    else:
+                        err = f"❌ Error: {err_s}"
+                        st.error(err)
+                        st.session_state.chat_history.append({"role":"assistant","content":err})
+                        save_message(st.session_state.current_thread_id, "assistant", err)
 
 # ── RIGHT COLUMN: WORKSPACE PANEL (DOCUMENTS & CONTROLS) ──
 with col_panel:
