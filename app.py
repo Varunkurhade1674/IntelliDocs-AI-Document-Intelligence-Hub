@@ -733,6 +733,9 @@ div[data-testid="stSlider"] div[data-testid="stWidgetLabel"] span {
 
 /* ── Chat input ── */
 [data-testid="stChatInput"] {
+    background: transparent !important;
+}
+[data-testid="stChatInput"] > div {
     background: #141828 !important;
     border: 1.5px solid #1E2340 !important;
     border-radius: 14px !important;
@@ -740,16 +743,11 @@ div[data-testid="stSlider"] div[data-testid="stWidgetLabel"] span {
     max-width: 740px !important;
     margin: 0 auto !important;
     font-family: 'Inter', sans-serif !important;
-    font-size: 14.5px !important;
     transition: border-color .18s, box-shadow .18s !important;
 }
-[data-testid="stChatInput"]:focus-within {
+[data-testid="stChatInput"]:focus-within > div {
     border-color: #6366F1 !important;
     box-shadow: 0 0 0 3px rgba(99,102,241,.2), 0 4px 12px rgba(0,0,0,.3) !important;
-}
-[data-testid="stChatInput"] > div {
-    background-color: transparent !important;
-    border: none !important;
 }
 [data-testid="stChatInput"] textarea {
     background: transparent !important;
@@ -1217,7 +1215,9 @@ def invoke_llm_with_fallback(provider, model, temp, msgs):
             if "429" in err_s or "RESOURCE_EXHAUSTED" in err_s or "quota" in err_s.lower():
                 continue   # try next model
             raise          # non-rate-limit error → re-raise immediately
-    raise last_err
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError("No models available")
 
 def export_chat():
     md = f"# IntelliDocs AI — Chat Export\n*{pd.Timestamp.now():%Y-%m-%d %H:%M}*\n\n---\n\n"
@@ -1544,23 +1544,29 @@ with st.sidebar:
         st.rerun()
 
     # ── Thread List ──
-    threads = get_threads(st.session_state.username)
-    if threads:
-        st.markdown('<div class="sb-section">Recent Chats</div>', unsafe_allow_html=True)
-        for tid, ttitle, _ in threads:
-            label = ("💬  " + ttitle[:26] + ("…" if len(ttitle) > 26 else ""))
-            is_active = (tid == st.session_state.current_thread_id)
-            btn_type = "primary" if is_active else "secondary"
-            if st.button(label, key=f"t_{tid}", use_container_width=True, type=btn_type):
-                st.session_state.current_thread_id = tid
-                st.session_state.chat_history = get_messages(tid)
-                st.rerun()
-        if st.session_state.current_thread_id:
-            if st.button("🗑  Delete conversation", use_container_width=True, key="btn_del"):
-                delete_thread(st.session_state.current_thread_id)
-                st.session_state.current_thread_id = None
-                st.session_state.chat_history = []
-                st.rerun()
+    thread_placeholder = st.empty()
+    
+    def render_sidebar_threads():
+        with thread_placeholder.container():
+            threads = get_threads(st.session_state.username)
+            if threads:
+                st.markdown('<div class="sb-section">Recent Chats</div>', unsafe_allow_html=True)
+                for tid, ttitle, _ in threads:
+                    label = ("💬  " + ttitle[:26] + ("…" if len(ttitle) > 26 else ""))
+                    is_active = (tid == st.session_state.current_thread_id)
+                    btn_type = "primary" if is_active else "secondary"
+                    if st.button(label, key=f"t_{tid}", use_container_width=True, type=btn_type):
+                        st.session_state.current_thread_id = tid
+                        st.session_state.chat_history = get_messages(tid)
+                        st.rerun()
+                if st.session_state.current_thread_id:
+                    if st.button("🗑  Delete conversation", use_container_width=True, key="btn_del"):
+                        delete_thread(st.session_state.current_thread_id)
+                        st.session_state.current_thread_id = None
+                        st.session_state.chat_history = []
+                        st.rerun()
+                        
+    render_sidebar_threads()
 
     st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
@@ -1693,6 +1699,7 @@ with col_chat:
                 tid = str(uuid.uuid4())
                 create_thread(tid, query[:32]+"…" if len(query)>32 else query, st.session_state.username)
                 st.session_state.current_thread_id = tid
+                render_sidebar_threads()
 
             save_message(st.session_state.current_thread_id, "user", query)
             st.session_state.chat_history.append({"role":"user","content":query})
