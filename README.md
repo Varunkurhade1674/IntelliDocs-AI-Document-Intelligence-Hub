@@ -205,17 +205,40 @@ pip install -r requirements.txt
 
 ---
 
-## Environment Variables
+## Environment Variables and API Keys
 
-Create a `.env` file:
+The system requires API keys for different LLM providers. Create a `.env` file in the root directory and add your keys:
 
 ```env
 GEMINI_API_KEY=your_gemini_key
-
 OPENAI_API_KEY=your_openai_key
-
 GROQ_API_KEY=your_groq_key
+OPENROUTER_API_KEY=your_openrouter_key
 ```
+
+### How to Get API Keys
+
+#### Google Gemini API Key
+1. Go to [Google AI Studio](https://aistudio.google.com/).
+2. Sign in with your Google account.
+3. Click on **Get API key** and generate a new key.
+
+#### OpenAI API Key
+1. Go to the [OpenAI Developer Platform](https://platform.openai.com/).
+2. Sign in or create an account.
+3. Navigate to **API keys** and click **Create new secret key**.
+
+#### Groq API Key
+1. Go to the [Groq Console](https://console.groq.com/).
+2. Sign in or create an account.
+3. Navigate to **API Keys** and generate a new key.
+
+#### OpenRouter API Key
+1. Go to [OpenRouter](https://openrouter.ai/).
+2. Sign in or create a free account.
+3. Navigate to **Keys** in your dashboard and click **Create Key**.
+4. Your key will begin with `sk-or-`.
+5. OpenRouter provides access to 100+ models (GPT-4, Claude, Llama, Mistral, etc.) through a single key.
 
 ---
 
